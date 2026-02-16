@@ -1,0 +1,107 @@
+-- SERVICES
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local LP = Players.LocalPlayer
+
+-- GUI OLUŞTURMA
+local gui = Instance.new("ScreenGui")
+gui.Name = "UltraMapUI"
+gui.ResetOnSpawn = false
+gui.Parent = game.CoreGui
+
+-- ANA ÇERÇEVE
+local mapFrame = Instance.new("Frame")
+mapFrame.Size = UDim2.new(0, 250, 0, 250)
+mapFrame.Position = UDim2.new(1, -260, 0, 20)
+mapFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+mapFrame.Active = true
+mapFrame.Draggable = true
+mapFrame.Parent = gui
+
+local stroke = Instance.new("UIStroke", mapFrame)
+stroke.Thickness = 3
+stroke.Color = Color3.fromRGB(0, 200, 255)
+
+-- VIEWPORT (GÖRÜNTÜ ALANI)
+local viewport = Instance.new("ViewportFrame")
+viewport.Size = UDim2.new(1, 0, 1, 0)
+viewport.BackgroundTransparency = 1
+viewport.Parent = mapFrame
+
+local mapCam = Instance.new("Camera")
+viewport.CurrentCamera = mapCam
+mapCam.Parent = viewport
+
+-- ZOOM DEĞİŞKENLERİ
+local zoomLevel = 300 -- Başlangıç yüksekliği (Tüm harita için arttırılabilir)
+
+-- ZOOM BUTONLARI (+ ve -)
+local function createBtn(text, pos, color)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, 30, 0, 30)
+    btn.Position = pos
+    btn.BackgroundColor3 = color
+    btn.Text = text
+    btn.TextColor3 = Color3.new(1, 1, 1)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 20
+    btn.Parent = mapFrame
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 5)
+    return btn
+end
+
+local zoomIn = createBtn("+", UDim2.new(1, 5, 0, 0), Color3.fromRGB(0, 150, 0))
+local zoomOut = createBtn("-", UDim2.new(1, 5, 0, 40), Color3.fromRGB(150, 0, 0))
+
+zoomIn.MouseButton1Click:Connect(function() zoomLevel = math.max(50, zoomLevel - 50) end)
+zoomOut.MouseButton1Click:Connect(function() zoomLevel = math.min(2000, zoomLevel + 150) end)
+
+-- HARİTADA NELER GÖRÜNECEK (LAGSIZ CLONE)
+local worldModel = Instance.new("WorldModel", viewport)
+local function updateWorld()
+    worldModel:ClearAllChildren()
+    for _, obj in pairs(game.Workspace:GetChildren()) do
+        if obj:IsA("BasePart") and obj.Transparency < 1 then
+            local c = obj:Clone()
+            c.Parent = worldModel
+        end
+    end
+end
+updateWorld() -- İlk açılışta haritayı yükle
+
+-- DÖNGÜ: KAMERA TAKİBİ
+RunService.RenderStepped:Connect(function()
+    if LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
+        local rootPos = LP.Character.HumanoidRootPart.Position
+        mapCam.CFrame = CFrame.new(rootPos + Vector3.new(0, zoomLevel, 0), rootPos)
+    end
+end)
+
+-- IŞINLANMA (TIKLANAN YERE)
+viewport.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        local mousePos = UIS:GetMouseLocation()
+        local relativeX = (mousePos.X - viewport.AbsolutePosition.X) / viewport.AbsoluteSize.X
+        local relativeY = (mousePos.Y - viewport.AbsolutePosition.Y) / viewport.AbsoluteSize.Y
+        
+        if LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
+            local root = LP.Character.HumanoidRootPart
+            -- Tıklanan yerin oranına göre karakteri kaydır
+            local moveX = (relativeX - 0.5) * (zoomLevel * 1.5)
+            local moveZ = (relativeY - 0.5) * (zoomLevel * 1.5)
+            
+            root.CFrame = root.CFrame + Vector3.new(moveX, 0, moveZ)
+        end
+    end
+end)
+
+-- HARİTAYI YENİLE (L TUŞU) VE GİZLE (M TUŞU)
+UIS.InputBegan:Connect(function(input, gp)
+    if gp then return end
+    if input.KeyCode == Enum.KeyCode.M then
+        mapFrame.Visible = not mapFrame.Visible
+    elseif input.KeyCode == Enum.KeyCode.L then
+        updateWorld() -- Harita çok değişirse yenilemek için
+    end
+end)
