@@ -1,128 +1,97 @@
 -- KAVO UI LIBRARY
 local Kavo = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = Kavo.CreateLib("MAP V4 - PRO", "Midnight")
+local Window = Kavo.CreateLib("GHOST DRONE V5 - PRO", "Midnight")
 
 -- SERVICES
-local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
 local UIS = game:GetService("UserInputService")
-local LP = Players.LocalPlayer
+local TS = game:GetService("TweenService")
+local LP = game.Players.LocalPlayer
 
--- STATE VARIABLES
-local protectionEnabled = false
-local zoomLevel = 400
-local loopConnection = nil
+-- SETTINGS
+local droneActive = false
+local droneSpeed = 2
+local dronePos = Vector3.new(0, 100, 0)
+local droneRot = Vector3.new(-90, 0, 0)
 
--- MAIN UI TAB
-local Tab = Window:NewTab("Ghost Mode & Map")
-local ProtectionSection = Tab:NewSection("Karakter Koruması")
-local MapSection = Tab:NewSection("Harita Ayarları")
+-- UI TABS
+local Tab = Window:NewTab("Drone & Teleport")
+local Section = Tab:NewSection("Drone Kontrol Paneli")
 
--- 1. ULTRA PROTECTION LOGIC (GOD MODE + STATE + NET)
-local function applyUltraProtection()
-    local char = LP.Character
-    if not char then return end
-    
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    
-    -- ForceField Yenileme
-    if not char:FindFirstChildOfClass("ForceField") then
-        local ff = Instance.new("ForceField")
-        ff.Visible = false
-        ff.Parent = char
-    end
+-- AYDINLIK HARİTA PANELİ
+local DroneGui = Instance.new("ScreenGui", game.CoreGui)
+local Viewport = Instance.new("ViewportFrame", DroneGui)
+Viewport.Size = UDim2.new(0, 250, 0, 250)
+Viewport.Position = UDim2.new(0, 10, 0.5, -125)
+Viewport.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+Viewport.BorderSizePixel = 2
+Viewport.Visible = false
 
-    if hum then
-        -- State Koruma
-        hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
-        hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
-        hum:SetStateEnabled(Enum.HumanoidStateType.PlatformStanding, false)
-        
-        -- MaxHealth Spam
-        hum.MaxHealth = math.huge
-        hum.Health = math.huge
-        hum.Sit = false
-    end
-
-    -- Network Ownership (Lag-Back Engelleme)
-    for _, part in pairs(char:GetChildren()) do
-        if part:IsA("BasePart") and not part.Anchored then
-            pcall(function() part:SetNetworkOwner(LP) end)
-        end
-    end
-    
-    -- Hasar Engelleme (Ghost Touch)
-    for _, v in pairs(char:GetDescendants()) do
-        if v:IsA("BasePart") then v.CanTouch = false end
-    end
-end
-
--- 2. MAP & TELEPORT SYSTEM
-local MapGui = Instance.new("ScreenGui", game.CoreGui)
-local MapFrame = Instance.new("Frame", MapGui)
-MapFrame.Size = UDim2.new(0, 230, 0, 230)
-MapFrame.Position = UDim2.new(0, 30, 0.5, -115)
-MapFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-MapFrame.Active = true
-MapFrame.Draggable = true -- Sürüklenebilir
-
-local Viewport = Instance.new("ViewportFrame", MapFrame)
-Viewport.Size = UDim2.new(1, 0, 1, 0)
-Viewport.BackgroundTransparency = 1
-Viewport.Ambient = Color3.fromRGB(200, 200, 200) -- Aydınlık ayarı
+-- SİYAHLIK SORUNU ÇÖZÜMÜ (IŞIKLANDIRMA)
+Viewport.Ambient = Color3.fromRGB(255, 255, 255) 
 Viewport.LightColor = Color3.fromRGB(255, 255, 255)
 Viewport.LightDirection = Vector3.new(0, -1, 0)
 
 local Camera = Instance.new("Camera", Viewport)
 Viewport.CurrentCamera = Camera
 
--- Harita Tıklama Işınlanma (Tweened)
+-- HARİTA YENİLEME FONKSİYONU
+local function refreshMap()
+    Viewport:ClearAllChildren()
+    local World = Instance.new("WorldModel", Viewport)
+    for _, v in pairs(game.Workspace:GetChildren()) do
+        if v:IsA("BasePart") and v.Transparency < 0.8 then
+            local clone = v:Clone()
+            clone.Parent = World
+        end
+    end
+end
+
+-- DRONE HAREKET DÖNGÜSÜ
+RunService.RenderStepped:Connect(function()
+    if droneActive then
+        -- WASD Kontrol
+        if UIS:IsKeyDown(Enum.KeyCode.W) then dronePos = dronePos + (Camera.CFrame.LookVector * droneSpeed) end
+        if UIS:IsKeyDown(Enum.KeyCode.S) then dronePos = dronePos - (Camera.CFrame.LookVector * droneSpeed) end
+        if UIS:IsKeyDown(Enum.KeyCode.A) then dronePos = dronePos - (Camera.CFrame.RightVector * droneSpeed) end
+        if UIS:IsKeyDown(Enum.KeyCode.D) then dronePos = dronePos + (Camera.CFrame.RightVector * droneSpeed) end
+        -- Yükseklik (Space/Shift)
+        if UIS:IsKeyDown(Enum.KeyCode.Space) then dronePos = dronePos + Vector3.new(0, droneSpeed, 0) end
+        if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then dronePos = dronePos - Vector3.new(0, droneSpeed, 0) end
+        
+        -- Kamera Güncelleme
+        Camera.CFrame = CFrame.new(dronePos) * CFrame.Angles(math.rad(droneRot.X), math.rad(droneRot.Y), math.rad(droneRot.Z))
+    end
+end)
+
+-- TIKLA IŞINLAN MANTIĞI
 Viewport.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        local char = LP.Character
-        if char and char:FindFirstChild("HumanoidRootPart") then
-            local mousePos = UIS:GetMouseLocation()
-            local relX = (mousePos.X - Viewport.AbsolutePosition.X) / Viewport.AbsoluteSize.X
-            local relY = (mousePos.Y - Viewport.AbsolutePosition.Y) / Viewport.AbsoluteSize.Y
-            
-            local targetPos = char.HumanoidRootPart.Position + Vector3.new((relX - 0.5) * zoomLevel * 2.5, 0, (relY - 0.5) * zoomLevel * 2.5)
-            TweenService:Create(char.HumanoidRootPart, TweenInfo.new(0.4), {CFrame = CFrame.new(targetPos + Vector3.new(0, 10, 0))}):Play()
+    if input.UserInputType == Enum.UserInputType.MouseButton1 and droneActive then
+        if LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
+            -- Drone'un bulunduğu tam koordinata ışınla
+            TS:Create(LP.Character.HumanoidRootPart, TweenInfo.new(0.5), {CFrame = CFrame.new(dronePos)}):Play()
         end
     end
 end)
 
--- UI CONTROLS
-ProtectionSection:NewToggle("Ultra Protection", "Ölümsüzlük ve State Koruma", function(state)
-    protectionEnabled = state
-    if state then
-        loopConnection = RunService.Heartbeat:Connect(applyUltraProtection)
-    else
-        if loopConnection then loopConnection:Disconnect() end
-        pcall(function() LP.Character.Humanoid.MaxHealth = 100 end)
+-- MENU BUTONLARI
+Section:NewToggle("Drone Modunu Aktif Et", "Haritayı açar ve serbest kamerayı başlatır", function(state)
+    droneActive = state
+    Viewport.Visible = state
+    if state then 
+        dronePos = LP.Character.HumanoidRootPart.Position + Vector3.new(0, 50, 0)
+        refreshMap() 
     end
 end)
 
-MapSection:NewSlider("Görüş (Zoom)", "Harita yüksekliği", 3000, 100, function(s)
-    zoomLevel = s
+Section:NewSlider("Drone Hızı", "Uçuş hızını ayarlar", 15, 1, function(s)
+    droneSpeed = s
 end)
 
-MapSection:NewButton("Haritayı Yenile / Aydınlat", "Siyahlık varsa bas", function()
-    Viewport:ClearAllChildren()
-    local World = Instance.new("WorldModel", Viewport)
-    for _, v in pairs(game.Workspace:GetChildren()) do
-        if v:IsA("BasePart") and v.Transparency < 0.5 then v:Clone().Parent = World end
-    end
+Section:NewButton("Haritayı Aydınlat / Yenile", "Görüntüde hata varsa bas", function()
+    refreshMap()
 end)
 
-MapSection:NewButton("Haritayı Göster/Gizle", "Ekrandan kaldırır", function()
-    MapFrame.Visible = not MapFrame.Visible
-end)
-
--- CAMERA TRACKING
-RunService.RenderStepped:Connect(function()
-    if LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
-        local p = LP.Character.HumanoidRootPart.Position
-        Camera.CFrame = CFrame.new(p + Vector3.new(0, zoomLevel, 0), p)
-    end
+Section:NewButton("Harita Konumunu Sıfırla", "Haritayı sol tarafa sabitler", function()
+    Viewport.Position = UDim2.new(0, 10, 0.5, -125)
 end)
