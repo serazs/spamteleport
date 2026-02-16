@@ -1,91 +1,61 @@
 -- KAVO UI
 local Kavo = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = Kavo.CreateLib("GHOST DRONE V6 - FULL COLOR", "Midnight")
+local Window = Kavo.CreateLib("GHOST DRONE V7 - REAL MAP", "Midnight")
 
 -- SERVICES
-local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 local TS = game:GetService("TweenService")
-local LP = game.Players.LocalPlayer
-local Lighting = game:GetService("Lighting")
+
+local LP = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
 
 -- SETTINGS
 local droneActive = false
-local droneSpeed = 3
 local dronePos = Vector3.new(0,100,0)
-local zoom = 80
+local zoom = 70
+local droneSpeed = 5
 
+------------------------------------------------
 -- UI
+------------------------------------------------
+
 local Tab = Window:NewTab("Drone")
 local Section = Tab:NewSection("Drone Kontrol")
 
-local MoveTab = Window:NewTab("Move")
-local MoveSection = MoveTab:NewSection("Hareket")
-
-local MapTab = Window:NewTab("Map")
-local MapSection = MapTab:NewSection("Harita")
-
--- GUI
-local DroneGui = Instance.new("ScreenGui", game.CoreGui)
-
-local Viewport = Instance.new("ViewportFrame")
-Viewport.Parent = DroneGui
-Viewport.Size = UDim2.new(0,300,0,300)
-Viewport.Position = UDim2.new(0,10,0.5,-150)
-Viewport.BackgroundColor3 = Color3.fromRGB(60,60,60)
-Viewport.BorderSizePixel = 0
-Viewport.Visible = false
-
--- IŞIK AYARLARI (SİYAH SORUNU ÇÖZÜM)
-Viewport.Ambient = Color3.new(1,1,1)
-Viewport.LightColor = Color3.new(1,1,1)
-Viewport.LightDirection = Vector3.new(-1,-1,-1)
-
-local Camera = Instance.new("Camera")
-Camera.Parent = Viewport
-Viewport.CurrentCamera = Camera
-
-local World = Instance.new("WorldModel")
-World.Parent = Viewport
+local MoveTab = Window:NewTab("Hareket")
+local MoveSection = MoveTab:NewSection("Yön")
 
 ------------------------------------------------
--- MAP REFRESH (FULL COLOR)
+-- DRONE CAMERA
 ------------------------------------------------
-local function refreshMap()
 
-    World:ClearAllChildren()
+local oldCamType = Camera.CameraType
+local oldSubject = Camera.CameraSubject
 
-    -- Lighting kopyala
-    local lightClone = Lighting:Clone()
-    lightClone.Parent = World
+local function enableDrone()
 
-    for _,v in ipairs(workspace:GetDescendants()) do
-        
-        if v:IsA("BasePart") 
-        and v.Transparency < 1 
-        and not v:IsDescendantOf(LP.Character) then
-            
-            local clone = v:Clone()
-            clone.Anchored = true
-            clone.Parent = World
-            
-        elseif v:IsA("Model") and not v:IsDescendantOf(LP.Character) then
-            
-            local clone = v:Clone()
-            clone.Parent = World
-            
-        elseif v:IsA("Terrain") then
-            
-            local terrainClone = v:Clone()
-            terrainClone.Parent = World
-            
-        end
+    oldCamType = Camera.CameraType
+    oldSubject = Camera.CameraSubject
+
+    Camera.CameraType = Enum.CameraType.Scriptable
+
+    if LP.Character then
+        dronePos = LP.Character.HumanoidRootPart.Position + Vector3.new(0,80,0)
     end
 end
 
+local function disableDrone()
+
+    Camera.CameraType = oldCamType
+    Camera.CameraSubject = oldSubject
+end
+
 ------------------------------------------------
--- DRONE UPDATE
+-- UPDATE LOOP
 ------------------------------------------------
+
 RunService.RenderStepped:Connect(function()
 
     if not droneActive then return end
@@ -99,49 +69,63 @@ RunService.RenderStepped:Connect(function()
 end)
 
 ------------------------------------------------
--- MAP CLICK MOVE
+-- CLICK TELEPORT
 ------------------------------------------------
-Viewport.InputBegan:Connect(function(input)
 
+UIS.InputBegan:Connect(function(input, gpe)
+
+    if gpe then return end
     if not droneActive then return end
-    if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
 
-    local mousePos = UIS:GetMouseLocation()
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
 
-    local ray = Camera:ViewportPointToRay(mousePos.X, mousePos.Y)
+        local mouse = UIS:GetMouseLocation()
+        local ray = Camera:ViewportPointToRay(mouse.X, mouse.Y)
 
-    local result = workspace:Raycast(ray.Origin, ray.Direction * 2000)
+        local params = RaycastParams.new()
+        params.FilterDescendantsInstances = {LP.Character}
+        params.FilterType = Enum.RaycastFilterType.Blacklist
 
-    if result then
-        dronePos = result.Position + Vector3.new(0,50,0)
+        local result = workspace:Raycast(ray.Origin, ray.Direction * 2000, params)
+
+        if result and LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
+
+            TS:Create(
+                LP.Character.HumanoidRootPart,
+                TweenInfo.new(0.4),
+                {CFrame = CFrame.new(result.Position + Vector3.new(0,3,0))}
+            ):Play()
+        end
     end
 end)
 
 ------------------------------------------------
 -- TOGGLE
 ------------------------------------------------
-Section:NewToggle("Drone Aç", "Drone aktif", function(state)
+
+Section:NewToggle("Drone Aç", "Drone kamera", function(state)
 
     droneActive = state
-    Viewport.Visible = state
 
-    if state and LP.Character then
-        
-        dronePos = LP.Character.HumanoidRootPart.Position + Vector3.new(0,50,0)
-        refreshMap()
+    if state then
+        enableDrone()
+    else
+        disableDrone()
     end
 end)
 
 ------------------------------------------------
 -- SPEED
 ------------------------------------------------
-Section:NewSlider("Drone Hız", "Hareket", 20, 1, function(val)
+
+Section:NewSlider("Hız", "Drone hız", 20, 1, function(val)
     droneSpeed = val
 end)
 
 ------------------------------------------------
 -- ZOOM
 ------------------------------------------------
+
 Section:NewSlider("Zoom", "Yakınlaştır", 120, 30, function(val)
     zoom = val
 end)
@@ -149,6 +133,7 @@ end)
 ------------------------------------------------
 -- MOVE BUTTONS
 ------------------------------------------------
+
 MoveSection:NewButton("⬆ İleri", "", function()
     dronePos += Vector3.new(0,0,-droneSpeed*5)
 end)
@@ -171,23 +156,4 @@ end)
 
 MoveSection:NewButton("🔽 Aşağı", "", function()
     dronePos += Vector3.new(0,-droneSpeed*5,0)
-end)
-
-------------------------------------------------
--- MAP POSITION
-------------------------------------------------
-MapSection:NewButton("Sol", "", function()
-    Viewport.Position = UDim2.new(0,10,0.5,-150)
-end)
-
-MapSection:NewButton("Sağ", "", function()
-    Viewport.Position = UDim2.new(1,-310,0.5,-150)
-end)
-
-MapSection:NewButton("Orta", "", function()
-    Viewport.Position = UDim2.new(0.5,-150,0.5,-150)
-end)
-
-MapSection:NewButton("Harita Yenile", "", function()
-    refreshMap()
 end)
