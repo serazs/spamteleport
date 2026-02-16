@@ -1,6 +1,6 @@
--- KAVO UI LIBRARY (GHOST DRONE V5 - PRO+)
+-- KAVO UI
 local Kavo = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = Kavo.CreateLib("GHOST DRONE V5 - PRO+", "Midnight")
+local Window = Kavo.CreateLib("GHOST DRONE V6 - PRO MAX", "Midnight")
 
 -- SERVICES
 local RunService = game:GetService("RunService")
@@ -12,146 +12,158 @@ local LP = game.Players.LocalPlayer
 local droneActive = false
 local droneSpeed = 3
 local dronePos = Vector3.new(0,100,0)
-local droneRot = Vector2.new(0,0)
-local sensitivity = 0.25
+local zoom = 80
 
--- UI TABS
-local Tab = Window:NewTab("Drone & Teleport")
-local Section = Tab:NewSection("Drone Panel")
+-- UI
+local Tab = Window:NewTab("Drone")
+local Section = Tab:NewSection("Drone Kontrol")
 
--- GUI OLUŞTURMA
+local MoveTab = Window:NewTab("Move Panel")
+local MoveSection = MoveTab:NewSection("Yön Tuşları")
+
+local MapTab = Window:NewTab("Map Ayar")
+local MapSection = MapTab:NewSection("Harita")
+
+-- GUI
 local DroneGui = Instance.new("ScreenGui", game.CoreGui)
-DroneGui.Name = "GhostDroneGui"
 
 local Viewport = Instance.new("ViewportFrame", DroneGui)
 Viewport.Size = UDim2.new(0,300,0,300)
 Viewport.Position = UDim2.new(0,10,0.5,-150)
-Viewport.BackgroundColor3 = Color3.fromRGB(15,15,15)
+Viewport.BackgroundColor3 = Color3.fromRGB(20,20,20)
 Viewport.BorderSizePixel = 0
 Viewport.Visible = false
-Viewport.Active = true
-Viewport.Draggable = true
 
--- AYDINLATMA AYARLARI (Siyahlık Sorunu Çözümü)
 Viewport.Ambient = Color3.new(1,1,1)
 Viewport.LightColor = Color3.new(1,1,1)
 Viewport.LightDirection = Vector3.new(-1,-1,-1)
 
 local Camera = Instance.new("Camera")
-Camera.FieldOfView = 80
 Camera.Parent = Viewport
 Viewport.CurrentCamera = Camera
 
 local World = Instance.new("WorldModel", Viewport)
 
----------------------------------------------------
--- MAP REFRESH (HARİTA YÜKLEME)
----------------------------------------------------
+------------------------------------------------
+-- MAP REFRESH
+------------------------------------------------
 local function refreshMap()
+
     World:ClearAllChildren()
-    local count = 0
-    local limit = 2500 -- Performans için parça limiti
 
     for _,v in ipairs(workspace:GetDescendants()) do
         if v:IsA("BasePart") and v.Transparency < 0.8 and not v:IsDescendantOf(LP.Character) then
+            
             local clone = v:Clone()
             clone.Anchored = true
             clone.Parent = World
-            
-            count = count + 1
-            if count > limit then break end
         end
     end
 end
 
----------------------------------------------------
--- MOUSE LOOK (MOUSE İLE BAKIŞ)
----------------------------------------------------
-UIS.InputChanged:Connect(function(input)
-    if droneActive and input.UserInputType == Enum.UserInputType.MouseMovement then
-        droneRot = droneRot + Vector2.new(
-            -input.Delta.Y * sensitivity,
-            -input.Delta.X * sensitivity
-        )
-    end
-end)
+------------------------------------------------
+-- DRONE UPDATE
+------------------------------------------------
+RunService.RenderStepped:Connect(function()
 
----------------------------------------------------
--- MOVEMENT LOOP (HAREKET DÖNGÜSÜ)
----------------------------------------------------
-RunService.RenderStepped:Connect(function(dt)
     if not droneActive then return end
 
-    local move = Vector3.zero
-    local cf = Camera.CFrame
+    Camera.FieldOfView = zoom
 
-    -- WASD + SPACE/SHIFT
-    if UIS:IsKeyDown(Enum.KeyCode.W) then move = move + cf.LookVector end
-    if UIS:IsKeyDown(Enum.KeyCode.S) then move = move - cf.LookVector end
-    if UIS:IsKeyDown(Enum.KeyCode.A) then move = move - cf.RightVector end
-    if UIS:IsKeyDown(Enum.KeyCode.D) then move = move + cf.RightVector end
-    if UIS:IsKeyDown(Enum.KeyCode.Space) then move = move + Vector3.new(0,1,0) end
-    if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then move = move - Vector3.new(0,1,0) end
+    Camera.CFrame = CFrame.new(dronePos) * CFrame.Angles(math.rad(-90),0,0)
 
-    dronePos = dronePos + (move * droneSpeed)
-
-    Camera.CFrame = CFrame.new(dronePos) * CFrame.Angles(
-        math.rad(droneRot.X),
-        math.rad(droneRot.Y),
-        0
-    )
 end)
 
----------------------------------------------------
--- CLICK TELEPORT (RAYCAST İLE TIKLADIĞIN YERE)
----------------------------------------------------
+------------------------------------------------
+-- MAP CLICK MOVE
+------------------------------------------------
 Viewport.InputBegan:Connect(function(input)
+
     if not droneActive then return end
     if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
 
     local mousePos = UIS:GetMouseLocation()
-    -- Viewport içindeki koordinatı bulma
-    local viewPos = Vector2.new(mousePos.X - Viewport.AbsolutePosition.X, mousePos.Y - Viewport.AbsolutePosition.Y)
-    local ray = Camera:ViewportPointToRay(viewPos.X, viewPos.Y)
 
-    local params = RaycastParams.new()
-    params.FilterDescendantsInstances = {LP.Character}
-    params.FilterType = Enum.RaycastFilterType.Blacklist
+    local ray = Camera:ViewportPointToRay(mousePos.X, mousePos.Y)
 
-    -- Dünyaya Raycast atarak çarptığı yeri bul
-    local result = workspace:Raycast(ray.Origin, ray.Direction * 1500, params)
+    local result = workspace:Raycast(ray.Origin, ray.Direction * 1000)
 
-    if result and LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
-        TS:Create(
-            LP.Character.HumanoidRootPart,
-            TweenInfo.new(0.5),
-            {CFrame = CFrame.new(result.Position + Vector3.new(0,3,0))}
-        ):Play()
+    if result then
+        dronePos = result.Position + Vector3.new(0,50,0)
     end
 end)
 
----------------------------------------------------
--- UI BUTTONS (MENÜ KONTROLLERİ)
----------------------------------------------------
-Section:NewToggle("Drone Aktif", "Drone kamerayı açar/kapatır", function(state)
+------------------------------------------------
+-- TOGGLE
+------------------------------------------------
+Section:NewToggle("Drone Aç", "Drone aktif", function(state)
+
     droneActive = state
     Viewport.Visible = state
 
     if state and LP.Character then
+        
         dronePos = LP.Character.HumanoidRootPart.Position + Vector3.new(0,50,0)
-        droneRot = Vector2.new(-45, 0) -- Hafif çapraz bakışla başla
         refreshMap()
     end
 end)
 
-Section:NewSlider("Drone Hızı", "Uçuş hızı ayarı", 30, 1, function(val)
+------------------------------------------------
+-- SPEED
+------------------------------------------------
+Section:NewSlider("Drone Hız", "Hareket", 20, 1, function(val)
     droneSpeed = val
 end)
 
-Section:NewButton("Haritayı Yenile", "Map refresh (Işıklandırma için)", function()
-    refreshMap()
+------------------------------------------------
+-- ZOOM
+------------------------------------------------
+Section:NewSlider("Zoom", "Yakınlaştır", 120, 30, function(val)
+    zoom = val
 end)
 
-Section:NewButton("Konum Sıfırla", "Haritayı sol tarafa çek", function()
+------------------------------------------------
+-- MOVE BUTTONS
+------------------------------------------------
+MoveSection:NewButton("⬆ İleri", "", function()
+    dronePos += Vector3.new(0,0,-droneSpeed*5)
+end)
+
+MoveSection:NewButton("⬇ Geri", "", function()
+    dronePos += Vector3.new(0,0,droneSpeed*5)
+end)
+
+MoveSection:NewButton("⬅ Sol", "", function()
+    dronePos += Vector3.new(-droneSpeed*5,0,0)
+end)
+
+MoveSection:NewButton("➡ Sağ", "", function()
+    dronePos += Vector3.new(droneSpeed*5,0,0)
+end)
+
+MoveSection:NewButton("🔼 Yukarı", "", function()
+    dronePos += Vector3.new(0,droneSpeed*5,0)
+end)
+
+MoveSection:NewButton("🔽 Aşağı", "", function()
+    dronePos += Vector3.new(0,-droneSpeed*5,0)
+end)
+
+------------------------------------------------
+-- MAP POSITION
+------------------------------------------------
+MapSection:NewButton("Sol", "", function()
     Viewport.Position = UDim2.new(0,10,0.5,-150)
+end)
+
+MapSection:NewButton("Sağ", "", function()
+    Viewport.Position = UDim2.new(1,-310,0.5,-150)
+end)
+
+MapSection:NewButton("Orta", "", function()
+    Viewport.Position = UDim2.new(0.5,-150,0.5,-150)
+end)
+
+MapSection:NewButton("Harita Yenile", "", function()
+    refreshMap()
 end)
