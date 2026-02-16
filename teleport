@@ -1,12 +1,11 @@
 -- KAVO UI
 local Kavo = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = Kavo.CreateLib("GHOST DRONE V8 - PERFECT", "Midnight")
+local Window = Kavo.CreateLib("GHOST DRONE V9 - SAFE", "Midnight")
 
 -- SERVICES
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local TS = game:GetService("TweenService")
 
 local LP = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
@@ -17,6 +16,43 @@ local droneActive = false
 local dronePos = Vector3.new(0,100,0)
 local zoom = 70
 local droneSpeed = 5
+
+------------------------------------------------
+-- SAFE TELEPORT FUNCTION
+------------------------------------------------
+
+local function safeTeleport(pos)
+
+    if not LP.Character then return end
+    
+    local char = LP.Character
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    
+    if not hrp or not hum then return end
+
+    -- KALKAN
+    local ff = Instance.new("ForceField")
+    ff.Visible = false
+    ff.Parent = char
+
+    -- FİZİĞİ DURDUR
+    hum.PlatformStand = true
+    
+    -- HIZ SIFIRLA
+    hrp.AssemblyLinearVelocity = Vector3.zero
+    hrp.AssemblyAngularVelocity = Vector3.zero
+
+    -- TELEPORT
+    hrp.CFrame = CFrame.new(pos + Vector3.new(0,6,0))
+
+    task.wait(0.25)
+
+    -- GERİ AÇ
+    hum.PlatformStand = false
+    
+    ff:Destroy()
+end
 
 ------------------------------------------------
 -- UI
@@ -70,7 +106,7 @@ RunService.RenderStepped:Connect(function()
 end)
 
 ------------------------------------------------
--- CLICK TELEPORT (TAM DOĞRU)
+-- CLICK TELEPORT
 ------------------------------------------------
 
 UIS.InputBegan:Connect(function(input, gpe)
@@ -80,18 +116,9 @@ UIS.InputBegan:Connect(function(input, gpe)
 
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
         
-        if LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
-            
-            local hitPos = mouse.Hit.Position
-            
-            TS:Create(
-                LP.Character.HumanoidRootPart,
-                TweenInfo.new(0.35),
-                {
-                    CFrame = CFrame.new(hitPos + Vector3.new(0, 5, 0))
-                }
-            ):Play()
-        end
+        local hitPos = mouse.Hit.Position
+        safeTeleport(hitPos)
+        
     end
 end)
 
