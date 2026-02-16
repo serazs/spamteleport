@@ -1,6 +1,6 @@
 -- KAVO UI
 local Kavo = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = Kavo.CreateLib("GHOST DRONE V9 - SAFE", "Midnight")
+local Window = Kavo.CreateLib("GHOST DRONE V10", "Midnight")
 
 -- SERVICES
 local Players = game:GetService("Players")
@@ -18,7 +18,7 @@ local zoom = 70
 local droneSpeed = 5
 
 ------------------------------------------------
--- SAFE TELEPORT FUNCTION
+-- SAFE TELEPORT
 ------------------------------------------------
 
 local function safeTeleport(pos)
@@ -31,62 +31,46 @@ local function safeTeleport(pos)
     
     if not hrp or not hum then return end
 
-    -- KALKAN
     local ff = Instance.new("ForceField")
     ff.Visible = false
     ff.Parent = char
 
-    -- FİZİĞİ DURDUR
     hum.PlatformStand = true
     
-    -- HIZ SIFIRLA
     hrp.AssemblyLinearVelocity = Vector3.zero
     hrp.AssemblyAngularVelocity = Vector3.zero
 
-    -- TELEPORT
     hrp.CFrame = CFrame.new(pos + Vector3.new(0,6,0))
 
     task.wait(0.25)
 
-    -- GERİ AÇ
     hum.PlatformStand = false
-    
     ff:Destroy()
 end
 
 ------------------------------------------------
--- UI
+-- CAMERA CONTROL
 ------------------------------------------------
-
-local Tab = Window:NewTab("Drone")
-local Section = Tab:NewSection("Drone Kontrol")
-
-local MoveTab = Window:NewTab("Hareket")
-local MoveSection = MoveTab:NewSection("Yön")
-
-------------------------------------------------
--- CAMERA SAVE
-------------------------------------------------
-
-local oldCamType = Camera.CameraType
-local oldSubject = Camera.CameraSubject
 
 local function enableDrone()
 
-    oldCamType = Camera.CameraType
-    oldSubject = Camera.CameraSubject
-
     Camera.CameraType = Enum.CameraType.Scriptable
 
-    if LP.Character then
+    if LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
         dronePos = LP.Character.HumanoidRootPart.Position + Vector3.new(0,80,0)
     end
 end
 
 local function disableDrone()
 
-    Camera.CameraType = oldCamType
-    Camera.CameraSubject = oldSubject
+    Camera.CameraType = Enum.CameraType.Custom
+    
+    if LP.Character then
+        local hum = LP.Character:FindFirstChildOfClass("Humanoid")
+        if hum then
+            Camera.CameraSubject = hum
+        end
+    end
 end
 
 ------------------------------------------------
@@ -123,10 +107,20 @@ UIS.InputBegan:Connect(function(input, gpe)
 end)
 
 ------------------------------------------------
+-- UI
+------------------------------------------------
+
+local Tab = Window:NewTab("Drone")
+local Section = Tab:NewSection("Drone")
+
+local MoveTab = Window:NewTab("Move")
+local MoveSection = MoveTab:NewSection("Yön")
+
+------------------------------------------------
 -- TOGGLE
 ------------------------------------------------
 
-Section:NewToggle("Drone Aç", "Drone kamera", function(state)
+Section:NewToggle("Drone Mode", "Drone kamera", function(state)
 
     droneActive = state
 
@@ -141,7 +135,7 @@ end)
 -- SPEED
 ------------------------------------------------
 
-Section:NewSlider("Hız", "Drone hız", 20, 1, function(val)
+Section:NewSlider("Speed", "", 20, 1, function(val)
     droneSpeed = val
 end)
 
@@ -149,7 +143,7 @@ end)
 -- ZOOM
 ------------------------------------------------
 
-Section:NewSlider("Zoom", "Yakınlaştır", 120, 30, function(val)
+Section:NewSlider("Zoom", "", 120, 30, function(val)
     zoom = val
 end)
 
@@ -157,26 +151,60 @@ end)
 -- MOVE BUTTONS
 ------------------------------------------------
 
-MoveSection:NewButton("⬆ İleri", "", function()
+MoveSection:NewButton("⬆", "", function()
     dronePos += Vector3.new(0,0,-droneSpeed*5)
 end)
 
-MoveSection:NewButton("⬇ Geri", "", function()
+MoveSection:NewButton("⬇", "", function()
     dronePos += Vector3.new(0,0,droneSpeed*5)
 end)
 
-MoveSection:NewButton("⬅ Sol", "", function()
+MoveSection:NewButton("⬅", "", function()
     dronePos += Vector3.new(-droneSpeed*5,0,0)
 end)
 
-MoveSection:NewButton("➡ Sağ", "", function()
+MoveSection:NewButton("➡", "", function()
     dronePos += Vector3.new(droneSpeed*5,0,0)
 end)
 
-MoveSection:NewButton("🔼 Yukarı", "", function()
+MoveSection:NewButton("🔼", "", function()
     dronePos += Vector3.new(0,droneSpeed*5,0)
 end)
 
-MoveSection:NewButton("🔽 Aşağı", "", function()
+MoveSection:NewButton("🔽", "", function()
     dronePos += Vector3.new(0,-droneSpeed*5,0)
+end)
+
+------------------------------------------------
+-- MINIMIZE BUTTON
+------------------------------------------------
+
+task.spawn(function()
+
+    task.wait(1)
+
+    local gui = game.CoreGui:FindFirstChild("KavoUI")
+    if not gui then return end
+
+    local topbar = gui:FindFirstChild("Top")
+    local main = gui:FindFirstChild("Main")
+
+    if not topbar or not main then return end
+
+    local minimize = Instance.new("TextButton")
+    minimize.Parent = topbar
+    minimize.Size = UDim2.new(0,30,0,30)
+    minimize.Position = UDim2.new(1,-60,0,0)
+    minimize.Text = "_"
+    minimize.BackgroundTransparency = 1
+    minimize.TextScaled = true
+    minimize.TextColor3 = Color3.new(1,1,1)
+
+    local minimized = false
+
+    minimize.MouseButton1Click:Connect(function()
+        minimized = not minimized
+        main.Visible = not minimized
+    end)
+
 end)
