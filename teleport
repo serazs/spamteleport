@@ -1,6 +1,6 @@
 -- KAVO UI
 local Kavo = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = Kavo.CreateLib("GHOST DRONE V7 - REAL MAP", "Midnight")
+local Window = Kavo.CreateLib("GHOST DRONE V8 - PERFECT", "Midnight")
 
 -- SERVICES
 local Players = game:GetService("Players")
@@ -10,6 +10,7 @@ local TS = game:GetService("TweenService")
 
 local LP = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
+local mouse = LP:GetMouse()
 
 -- SETTINGS
 local droneActive = false
@@ -28,7 +29,7 @@ local MoveTab = Window:NewTab("Hareket")
 local MoveSection = MoveTab:NewSection("Yön")
 
 ------------------------------------------------
--- DRONE CAMERA
+-- CAMERA SAVE
 ------------------------------------------------
 
 local oldCamType = Camera.CameraType
@@ -69,7 +70,7 @@ RunService.RenderStepped:Connect(function()
 end)
 
 ------------------------------------------------
--- CLICK TELEPORT
+-- CLICK TELEPORT (TAM DOĞRU)
 ------------------------------------------------
 
 UIS.InputBegan:Connect(function(input, gpe)
@@ -78,22 +79,17 @@ UIS.InputBegan:Connect(function(input, gpe)
     if not droneActive then return end
 
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
-
-        local mouse = UIS:GetMouseLocation()
-        local ray = Camera:ViewportPointToRay(mouse.X, mouse.Y)
-
-        local params = RaycastParams.new()
-        params.FilterDescendantsInstances = {LP.Character}
-        params.FilterType = Enum.RaycastFilterType.Blacklist
-
-        local result = workspace:Raycast(ray.Origin, ray.Direction * 2000, params)
-
-        if result and LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
-
+        
+        if LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
+            
+            local hitPos = mouse.Hit.Position
+            
             TS:Create(
                 LP.Character.HumanoidRootPart,
-                TweenInfo.new(0.4),
-                {CFrame = CFrame.new(result.Position + Vector3.new(0,3,0))}
+                TweenInfo.new(0.35),
+                {
+                    CFrame = CFrame.new(hitPos + Vector3.new(0, 5, 0))
+                }
             ):Play()
         end
     end
