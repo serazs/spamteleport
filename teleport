@@ -1,74 +1,74 @@
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local Kavo = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
+local Window = Kavo.CreateLib("GHOST MAP V4 - PRO", "Midnight")
 
-local Window = Rayfield:CreateWindow({
-   Name = "GHOST MAP V3",
-   LoadingTitle = "Harita & Işınlanma Hazırlanıyor...",
-   LoadingSubtitle = "by Serazs",
-   ConfigurationSaving = {Enabled = false}
-})
+local Tab = Window:NewTab("Teleport & Map")
+local Section = Tab:NewSection("Gelişmiş Işınlanma Sistemi")
 
-local Tab = Window:CreateTab("🌍 Harita Kontrol")
-local Section = Tab:CreateSection("Harita ve Işınlanma")
-
--- HARİTA İÇİN PANEL OLUŞTURMA
-local MapContainer = Instance.new("Frame")
-MapContainer.Size = UDim2.new(0, 200, 0, 200)
-MapContainer.Position = UDim2.new(0.5, -100, 0, 50)
-MapContainer.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-MapContainer.Parent = game.CoreGui:FindFirstChild("Rayfield").Main.Elements -- Menü içine ekleme
-
-local viewport = Instance.new("ViewportFrame", MapContainer)
-viewport.Size = UDim2.new(1, 0, 1, 0)
-viewport.BackgroundTransparency = 1
-
-local cam = Instance.new("Camera", viewport)
-viewport.CurrentCamera = cam
-
-local zoom = 300
-
--- IŞINLANMA FONKSİYONU
-local function teleportToMap(relX, relY)
+-- IŞINLANMA MOTORU (LAGSIZ & ANTICHEAT SAFE)
+local function safeTeleport(targetCFrame)
     local char = game.Players.LocalPlayer.Character
     if char and char:FindFirstChild("HumanoidRootPart") then
-        local root = char.HumanoidRootPart
-        -- Tıklanan yerin koordinat hesabı
-        local moveX = (relX - 0.5) * (zoom * 2)
-        local moveZ = (relY - 0.5) * (zoom * 2)
-        root.CFrame = root.CFrame * CFrame.new(moveX, 0, moveZ)
+        local tweenService = game:GetService("TweenService")
+        local info = TweenInfo.new(0.5, Enum.EasingStyle.Quad) -- 0.5 saniyede yağ gibi akar
+        local tween = tweenService:Create(char.HumanoidRootPart, info, {CFrame = targetCFrame})
+        tween:Play()
     end
 end
 
-viewport.InputBegan:Connect(function(input)
+-- HARİTA PANELİ (EKRANA ÖZEL ÇİZİM)
+local MapGui = Instance.new("ScreenGui", game.CoreGui)
+local MapFrame = Instance.new("Frame", MapGui)
+MapFrame.Size = UDim2.new(0, 220, 0, 220)
+MapFrame.Position = UDim2.new(0, 10, 0.5, -110)
+MapFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+MapFrame.BorderSizePixel = 2
+MapFrame.Visible = true
+
+local Viewport = Instance.new("ViewportFrame", MapFrame)
+Viewport.Size = UDim2.new(1, 0, 1, 0)
+Viewport.BackgroundTransparency = 1
+
+local Camera = Instance.new("Camera", Viewport)
+Viewport.CurrentCamera = Camera
+local Zoom = 400
+
+-- HARİTAYA TIKLAYINCA IŞINLANMA
+Viewport.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        local relX = (input.Position.X - viewport.AbsolutePosition.X) / viewport.AbsoluteSize.X
-        local relY = (input.Position.Y - viewport.AbsolutePosition.Y) / viewport.AbsoluteSize.Y
-        teleportToMap(relX, relY)
+        local char = game.Players.LocalPlayer.Character
+        if char then
+            local root = char.HumanoidRootPart
+            local mousePos = game:GetService("UserInputService"):GetMouseLocation()
+            local relX = (mousePos.X - Viewport.AbsolutePosition.X) / Viewport.AbsoluteSize.X
+            local relY = (mousePos.Y - Viewport.AbsolutePosition.Y) / Viewport.AbsoluteSize.Y
+            
+            local targetPos = root.Position + Vector3.new((relX - 0.5) * Zoom * 2.5, 0, (relY - 0.5) * Zoom * 2.5)
+            safeTeleport(CFrame.new(targetPos + Vector3.new(0, 5, 0)))
+        end
     end
 end)
 
--- TUŞLAR
-Tab:CreateButton({
-   Name = "Haritayı Yenile (L)",
-   Callback = function()
-       viewport:ClearAllChildren()
-       local world = Instance.new("WorldModel", viewport)
-       for _, obj in pairs(game.Workspace:GetChildren()) do
-           if obj:IsA("BasePart") then obj:Clone().Parent = world end
-       end
-   end,
-})
+-- KAVO KONTROLLERİ
+Section:NewSlider("Harita Zoom (Yükseklik)", "Haritayı genişletir/daraltır", 3000, 100, function(s)
+    Zoom = s
+end)
 
-Tab:CreateSlider({
-   Name = "Zoom Ayarı",
-   Range = {50, 2000},
-   Increment = 50,
-   Suffix = "Mesafe",
-   CurrentValue = 300,
-   Callback = function(Value) zoom = Value end,
-})
+Section:NewButton("Haritayı Gizle/Aç", "M tuşu yerine butondan kontrol", function()
+    MapFrame.Visible = not MapFrame.Visible
+end)
 
--- DÖNGÜ
+Section:NewButton("Harita Renderını Yenile", "Harita değişirse bas", function()
+    Viewport:ClearAllChildren()
+    local World = Instance.new("WorldModel", Viewport)
+    for _, v in pairs(game.Workspace:GetChildren()) do
+        if v:IsA("BasePart") and v.Transparency < 1 then v:Clone().Parent = World end
+    end
+end)
+
+-- KAMERA TAKİP DÖNGÜSÜ
 game:GetService("RunService").RenderStepped:Connect(function()
-    local p = game.Players.LocalPlayer.Character.HumanoidRootPart.Position
-    cam.CFrame = CFrame.new(p + Vector3.new(0, zoom, 0), p)
+    if game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local p = game.Players.LocalPlayer.Character.HumanoidRootPart.Position
+        Camera.CFrame = CFrame.new(p + Vector3.new(0, Zoom, 0), p)
+    end
 end)
