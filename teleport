@@ -1,12 +1,13 @@
 -- KAVO UI
 local Kavo = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local Window = Kavo.CreateLib("GHOST DRONE V6 - PRO MAX", "Midnight")
+local Window = Kavo.CreateLib("GHOST DRONE V6 - FULL COLOR", "Midnight")
 
 -- SERVICES
 local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
 local TS = game:GetService("TweenService")
 local LP = game.Players.LocalPlayer
+local Lighting = game:GetService("Lighting")
 
 -- SETTINGS
 local droneActive = false
@@ -18,22 +19,24 @@ local zoom = 80
 local Tab = Window:NewTab("Drone")
 local Section = Tab:NewSection("Drone Kontrol")
 
-local MoveTab = Window:NewTab("Move Panel")
-local MoveSection = MoveTab:NewSection("Yön Tuşları")
+local MoveTab = Window:NewTab("Move")
+local MoveSection = MoveTab:NewSection("Hareket")
 
-local MapTab = Window:NewTab("Map Ayar")
+local MapTab = Window:NewTab("Map")
 local MapSection = MapTab:NewSection("Harita")
 
 -- GUI
 local DroneGui = Instance.new("ScreenGui", game.CoreGui)
 
-local Viewport = Instance.new("ViewportFrame", DroneGui)
+local Viewport = Instance.new("ViewportFrame")
+Viewport.Parent = DroneGui
 Viewport.Size = UDim2.new(0,300,0,300)
 Viewport.Position = UDim2.new(0,10,0.5,-150)
-Viewport.BackgroundColor3 = Color3.fromRGB(20,20,20)
+Viewport.BackgroundColor3 = Color3.fromRGB(60,60,60)
 Viewport.BorderSizePixel = 0
 Viewport.Visible = false
 
+-- IŞIK AYARLARI (SİYAH SORUNU ÇÖZÜM)
 Viewport.Ambient = Color3.new(1,1,1)
 Viewport.LightColor = Color3.new(1,1,1)
 Viewport.LightDirection = Vector3.new(-1,-1,-1)
@@ -42,21 +45,40 @@ local Camera = Instance.new("Camera")
 Camera.Parent = Viewport
 Viewport.CurrentCamera = Camera
 
-local World = Instance.new("WorldModel", Viewport)
+local World = Instance.new("WorldModel")
+World.Parent = Viewport
 
 ------------------------------------------------
--- MAP REFRESH
+-- MAP REFRESH (FULL COLOR)
 ------------------------------------------------
 local function refreshMap()
 
     World:ClearAllChildren()
 
+    -- Lighting kopyala
+    local lightClone = Lighting:Clone()
+    lightClone.Parent = World
+
     for _,v in ipairs(workspace:GetDescendants()) do
-        if v:IsA("BasePart") and v.Transparency < 0.8 and not v:IsDescendantOf(LP.Character) then
+        
+        if v:IsA("BasePart") 
+        and v.Transparency < 1 
+        and not v:IsDescendantOf(LP.Character) then
             
             local clone = v:Clone()
             clone.Anchored = true
             clone.Parent = World
+            
+        elseif v:IsA("Model") and not v:IsDescendantOf(LP.Character) then
+            
+            local clone = v:Clone()
+            clone.Parent = World
+            
+        elseif v:IsA("Terrain") then
+            
+            local terrainClone = v:Clone()
+            terrainClone.Parent = World
+            
         end
     end
 end
@@ -70,7 +92,9 @@ RunService.RenderStepped:Connect(function()
 
     Camera.FieldOfView = zoom
 
-    Camera.CFrame = CFrame.new(dronePos) * CFrame.Angles(math.rad(-90),0,0)
+    Camera.CFrame =
+        CFrame.new(dronePos) *
+        CFrame.Angles(math.rad(-90),0,0)
 
 end)
 
@@ -86,7 +110,7 @@ Viewport.InputBegan:Connect(function(input)
 
     local ray = Camera:ViewportPointToRay(mousePos.X, mousePos.Y)
 
-    local result = workspace:Raycast(ray.Origin, ray.Direction * 1000)
+    local result = workspace:Raycast(ray.Origin, ray.Direction * 2000)
 
     if result then
         dronePos = result.Position + Vector3.new(0,50,0)
