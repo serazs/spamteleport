@@ -8,6 +8,7 @@ local UIS = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local SoundService = game:GetService("SoundService")
+local Workspace = game:GetService("Workspace")
 
 local LP = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
@@ -18,8 +19,23 @@ local droneActive = false
 local dronePos = Vector3.new(0,100,0)
 local zoom = 70
 local droneSpeed = 5
-local normalTeleportKey = Enum.KeyCode.E -- Normal modda ışınlanma tuşu
-local teleportSoundId = "rbxassetid://9120387637" -- Örnek teleport sesi (ücretsiz, değiştirebilirsin)
+local normalTeleportKey = Enum.KeyCode.E
+
+-- MEVCUT MÜZİK KÜTÜPHANESİ (SoundService'teki mevcut sesleri kullan)
+local function playTeleportSound()
+    -- SoundService'te varsayılan bir ses var mı kontrol et
+    local sound = SoundService:FindFirstChild("TeleportSound")
+    if not sound then
+        -- Yoksa geçici bir ses oluştur
+        sound = Instance.new("Sound")
+        sound.Name = "TeleportSound"
+        sound.SoundId = "rbxasset://sounds/collapse.wav" -- Varsayılan Roblox sesi
+        sound.Volume = 0.5
+        sound.Parent = SoundService
+    end
+    sound:Play()
+    game:GetService("Debris"):AddItem(sound:Clone(), 2) -- Çalınan sesi temizle
+end
 
 ------------------------------------------------
 -- SAFE TELEPORT (Sesli versiyon)
@@ -33,14 +49,9 @@ local function safeTeleport(pos, playSound)
     
     if not hrp or not hum then return end
 
-    -- Ses çal (opsiyonel)
+    -- Ses çal
     if playSound then
-        local sound = Instance.new("Sound")
-        sound.SoundId = teleportSoundId
-        sound.Volume = 0.5
-        sound.Parent = hrp
-        sound:Play()
-        game:GetService("Debris"):AddItem(sound, 2)
+        playTeleportSound()
     end
 
     local ff = Instance.new("ForceField")
@@ -96,7 +107,7 @@ UIS.InputBegan:Connect(function(input, gpe)
     if gpe then return end
     if droneActive and input.UserInputType == Enum.UserInputType.MouseButton1 then
         local hitPos = mouse.Hit.Position
-        safeTeleport(hitPos, true) -- drone modunda sesli ışınlanma
+        safeTeleport(hitPos, true)
     end
 end)
 
@@ -107,7 +118,7 @@ UIS.InputBegan:Connect(function(input, gpe)
     if gpe then return end
     if not droneActive and input.KeyCode == normalTeleportKey then
         local hitPos = mouse.Hit.Position
-        safeTeleport(hitPos, true) -- normal modda sesli ışınlanma
+        safeTeleport(hitPos, true)
     end
 end)
 
@@ -120,8 +131,8 @@ local Section = Tab:NewSection("Drone")
 local MoveTab = Window:NewTab("Move")
 local MoveSection = MoveTab:NewSection("Yön")
 
-local NormalTab = Window:NewTab("Normal Mod")
-local NormalSection = NormalTab:NewSection("Işınlanma")
+local NormalTab = Window:NewTab("Normal")
+local NormalSection = NormalTab:NewSection("Bilgi")
 
 ------------------------------------------------
 -- DRONE TOGGLE
@@ -177,20 +188,10 @@ MoveSection:NewButton("🔽", "", function()
 end)
 
 ------------------------------------------------
--- NORMAL MOD AYARLARI
+-- NORMAL MOD (SADECE BİLGİ)
 ------------------------------------------------
 NormalSection:NewLabel("Normal modda fareyi bir yere getir")
 NormalSection:NewLabel("ve 'E' tuşuna basarak ışınlan.")
-NormalSection:NewLabel("Ses ID: " .. teleportSoundId)
-
--- Ses ID'si değiştirme butonu (manuel)
-NormalSection:NewButton("Ses ID'sini Değiştir", "Scriptteki teleportSoundId değişkenini düzenle", function()
-    game:GetService("StarterGui"):SetCore("SendNotification", {
-        Title = "Ses ID'si",
-        Text = "Şu anki ID: " .. teleportSoundId .. "\nDeğiştirmek için scripti düzenle.",
-        Duration = 5
-    })
-end)
 
 ------------------------------------------------
 -- MINIMIZE BUTTON
@@ -220,6 +221,6 @@ end)
 -- Bildirim
 game:GetService("StarterGui"):SetCore("SendNotification", {
     Title = "Ghost Drone V10",
-    Text = "Normal modda E tuşu ile ışınlan!",
+    Text = "Normal mod: E tuşu ile ışınlan!",
     Duration = 5
 })
