@@ -6,9 +6,6 @@ local Window = Kavo.CreateLib("GHOST DRONE V10", "Midnight")
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
-local SoundService = game:GetService("SoundService")
-local Workspace = game:GetService("Workspace")
 
 local LP = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
@@ -20,27 +17,12 @@ local dronePos = Vector3.new(0,100,0)
 local zoom = 70
 local droneSpeed = 5
 local normalTeleportKey = Enum.KeyCode.E
-
--- MEVCUT MÜZİK KÜTÜPHANESİ (SoundService'teki mevcut sesleri kullan)
-local function playTeleportSound()
-    -- SoundService'te varsayılan bir ses var mı kontrol et
-    local sound = SoundService:FindFirstChild("TeleportSound")
-    if not sound then
-        -- Yoksa geçici bir ses oluştur
-        sound = Instance.new("Sound")
-        sound.Name = "TeleportSound"
-        sound.SoundId = "rbxasset://sounds/collapse.wav" -- Varsayılan Roblox sesi
-        sound.Volume = 0.5
-        sound.Parent = SoundService
-    end
-    sound:Play()
-    game:GetService("Debris"):AddItem(sound:Clone(), 2) -- Çalınan sesi temizle
-end
+local normalModActive = true  -- Normal mod ışınlanma açık/kapalı
 
 ------------------------------------------------
--- SAFE TELEPORT (Sesli versiyon)
+-- SAFE TELEPORT (SESSİZ)
 ------------------------------------------------
-local function safeTeleport(pos, playSound)
+local function safeTeleport(pos)
     if not LP.Character then return end
     
     local char = LP.Character
@@ -48,11 +30,6 @@ local function safeTeleport(pos, playSound)
     local hum = char:FindFirstChildOfClass("Humanoid")
     
     if not hrp or not hum then return end
-
-    -- Ses çal
-    if playSound then
-        playTeleportSound()
-    end
 
     local ff = Instance.new("ForceField")
     ff.Visible = false
@@ -107,7 +84,7 @@ UIS.InputBegan:Connect(function(input, gpe)
     if gpe then return end
     if droneActive and input.UserInputType == Enum.UserInputType.MouseButton1 then
         local hitPos = mouse.Hit.Position
-        safeTeleport(hitPos, true)
+        safeTeleport(hitPos)
     end
 end)
 
@@ -116,9 +93,9 @@ end)
 ------------------------------------------------
 UIS.InputBegan:Connect(function(input, gpe)
     if gpe then return end
-    if not droneActive and input.KeyCode == normalTeleportKey then
+    if not droneActive and normalModActive and input.KeyCode == normalTeleportKey then
         local hitPos = mouse.Hit.Position
-        safeTeleport(hitPos, true)
+        safeTeleport(hitPos)
     end
 end)
 
@@ -131,8 +108,8 @@ local Section = Tab:NewSection("Drone")
 local MoveTab = Window:NewTab("Move")
 local MoveSection = MoveTab:NewSection("Yön")
 
-local NormalTab = Window:NewTab("Normal")
-local NormalSection = NormalTab:NewSection("Bilgi")
+local NormalTab = Window:NewTab("Normal Mod")
+local NormalSection = NormalTab:NewSection("Işınlanma")
 
 ------------------------------------------------
 -- DRONE TOGGLE
@@ -188,10 +165,15 @@ MoveSection:NewButton("🔽", "", function()
 end)
 
 ------------------------------------------------
--- NORMAL MOD (SADECE BİLGİ)
+-- NORMAL MOD AYARLARI
 ------------------------------------------------
-NormalSection:NewLabel("Normal modda fareyi bir yere getir")
-NormalSection:NewLabel("ve 'E' tuşuna basarak ışınlan.")
+NormalSection:NewToggle("Normal Mod Aktif", "E tuşu ile ışınlanma", function(state)
+    normalModActive = state
+end)
+
+NormalSection:NewLabel("Normal moddayken fare ile bir yere bak")
+NormalSection:NewLabel("ve 'E' tuşuna bas. Oraya ışınlanırsın.")
+NormalSection:NewLabel("Drone modu kapalıyken çalışır.")
 
 ------------------------------------------------
 -- MINIMIZE BUTTON
@@ -221,6 +203,6 @@ end)
 -- Bildirim
 game:GetService("StarterGui"):SetCore("SendNotification", {
     Title = "Ghost Drone V10",
-    Text = "Normal mod: E tuşu ile ışınlan!",
-    Duration = 5
+    Text = "Normal Mod: E tuşu ile ışınlan (aç/kapa var)",
+    Duration = 4
 })
