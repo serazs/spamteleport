@@ -6,6 +6,7 @@ local Window = Kavo.CreateLib("GHOST DRONE V10", "Midnight")
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+local SoundService = game:GetService("SoundService")
 
 local LP = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
@@ -17,7 +18,13 @@ local dronePos = Vector3.new(0,100,0)
 local zoom = 70
 local droneSpeed = 5
 local normalTeleportKey = Enum.KeyCode.E
-local normalModActive = true
+local normalModActive = true  -- Normal mod ışınlanma açık/kapalı
+
+-- Müzik ayarları
+local musicActive = false
+local musicVolume = 0.5
+local currentMusicId = "9120387637" -- Varsayılan ses ID'si (bip sesi)
+local musicSound = nil
 
 ------------------------------------------------
 -- SAFE TELEPORT (SESLİ)
@@ -31,13 +38,13 @@ local function safeTeleport(pos)
     
     if not hrp or not hum then return end
 
-    -- Bip sesi çal (Roblox varsayılan UI sesi)
+    -- Bip sesi çal
     local sound = Instance.new("Sound")
-    sound.SoundId = "rbxasset://sounds/UI/Click.ogg"  -- Roblox'un kendi tıklama sesi
+    sound.SoundId = "rbxassetid://" .. currentMusicId
     sound.Volume = 0.3
     sound.Parent = hrp
     sound:Play()
-    game:GetService("Debris"):AddItem(sound, 1)
+    game:GetService("Debris"):AddItem(sound, 2)
 
     local ff = Instance.new("ForceField")
     ff.Visible = false
@@ -67,21 +74,25 @@ local function enableDrone()
 end
 
 local function disableDrone()
-    -- Kamerayı sıfırla
+    -- Kamerayı tamamen sıfırla
     Camera.CameraType = Enum.CameraType.Custom
     
-    -- Eğer karakter varsa, CameraSubject'i humanoid yap
     if LP.Character then
         local hum = LP.Character:FindFirstChildOfClass("Humanoid")
         if hum then
             Camera.CameraSubject = hum
         else
-            -- Eğer humanoid yoksa varsayılan kamera davranışına dön
-            Camera.CameraType = Enum.CameraType.Fixed
+            -- Eğer humanoid yoksa varsayılan olarak workspace'i hedef al
+            Camera.CameraSubject = workspace
         end
     else
-        -- Karakter yoksa varsayılan
         Camera.CameraType = Enum.CameraType.Fixed
+    end
+    
+    -- Bazen kamera hala scriptable kalabiliyor, zorla sıfırla
+    task.wait(0.1)
+    if Camera.CameraType == Enum.CameraType.Scriptable then
+        Camera.CameraType = Enum.CameraType.Custom
     end
 end
 
@@ -117,6 +128,35 @@ UIS.InputBegan:Connect(function(input, gpe)
 end)
 
 ------------------------------------------------
+-- MÜZİK FONKSİYONLARI
+------------------------------------------------
+local function createMusicSound()
+    if musicSound then
+        pcall(function() musicSound:Stop() musicSound:Destroy() end)
+    end
+    
+    musicSound = Instance.new("Sound")
+    musicSound.SoundId = "rbxassetid://" .. currentMusicId
+    musicSound.Volume = musicVolume
+    musicSound.Looped = true
+    musicSound.Parent = workspace
+    return musicSound
+end
+
+local function playMusic()
+    if not musicSound then
+        musicSound = createMusicSound()
+    end
+    musicSound:Play()
+end
+
+local function stopMusic()
+    if musicSound then
+        musicSound:Stop()
+    end
+end
+
+------------------------------------------------
 -- UI
 ------------------------------------------------
 local Tab = Window:NewTab("Drone")
@@ -127,6 +167,9 @@ local MoveSection = MoveTab:NewSection("Yön")
 
 local NormalTab = Window:NewTab("Normal Mod")
 local NormalSection = NormalTab:NewSection("Işınlanma")
+
+local MusicTab = Window:NewTab("Müzik")
+local MusicSection = MusicTab:NewSection("Müzik Çalar")
 
 ------------------------------------------------
 -- DRONE TOGGLE
@@ -193,6 +236,61 @@ NormalSection:NewLabel("ve 'E' tuşuna bas. Oraya ışınlanırsın.")
 NormalSection:NewLabel("Drone modu kapalıyken çalışır.")
 
 ------------------------------------------------
+-- MÜZİK MENÜSÜ
+------------------------------------------------
+MusicSection:NewToggle("Müzik Aç/Kapa", "Müzik çalmayı başlat/durdur", function(state)
+    musicActive = state
+    if state then
+        playMusic()
+    else
+        stopMusic()
+    end
+end)
+
+MusicSection:NewSlider("Ses Seviyesi", "", 10, 0, function(val)
+    musicVolume = val / 10
+    if musicSound then
+        musicSound.Volume = musicVolume
+    end
+end)
+
+-- Ses ID'si girişi için bir buton (kullanıcı kendi ID'sini girebilir)
+MusicSection:NewButton("Ses ID'si Değiştir", "Yeni bir ses ID'si gir", function()
+    local id = game:GetService("Players").LocalPlayer.PlayerGui:WaitForChild("TextInput") -- Bu kısım geliştirilebilir
+    -- Basit bir çözüm olarak notification ile yönlendirelim
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "Ses ID'si",
+        Text = "Scriptteki currentMusicId değişkenini değiştirin.",
+        Duration = 5
+    })
+end)
+
+-- Örnek hazır müzikler
+MusicSection:NewButton("🎵 Varsayılan Bip", "", function()
+    currentMusicId = "9120387637"
+    if musicActive then
+        stopMusic()
+        playMusic()
+    end
+end)
+
+MusicSection:NewButton("🎵 Sakin Müzik", "", function()
+    currentMusicId = "1837148932" -- Örnek bir sakin müzik ID'si
+    if musicActive then
+        stopMusic()
+        playMusic()
+    end
+end)
+
+MusicSection:NewButton("🎵 Enerjik Müzik", "", function()
+    currentMusicId = "138859146" -- Örnek enerjik müzik
+    if musicActive then
+        stopMusic()
+        playMusic()
+    end
+end)
+
+------------------------------------------------
 -- MINIMIZE BUTTON
 ------------------------------------------------
 task.spawn(function()
@@ -220,6 +318,6 @@ end)
 -- Bildirim
 game:GetService("StarterGui"):SetCore("SendNotification", {
     Title = "Ghost Drone V10",
-    Text = "Işınlanırken bip sesi eklendi!",
+    Text = "Müzik menüsü eklendi, kamera sorunu düzeltildi!",
     Duration = 4
 })
