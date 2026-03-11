@@ -6,6 +6,8 @@ local Window = Kavo.CreateLib("GHOST DRONE V10", "Midnight")
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local SoundService = game:GetService("SoundService")
 
 local LP = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
@@ -16,13 +18,13 @@ local droneActive = false
 local dronePos = Vector3.new(0,100,0)
 local zoom = 70
 local droneSpeed = 5
+local normalTeleportKey = Enum.KeyCode.E -- Normal modda ışınlanma tuşu
+local teleportSoundId = "rbxassetid://9120387637" -- Örnek teleport sesi (ücretsiz, değiştirebilirsin)
 
 ------------------------------------------------
--- SAFE TELEPORT
+-- SAFE TELEPORT (Sesli versiyon)
 ------------------------------------------------
-
-local function safeTeleport(pos)
-
+local function safeTeleport(pos, playSound)
     if not LP.Character then return end
     
     local char = LP.Character
@@ -30,6 +32,16 @@ local function safeTeleport(pos)
     local hum = char:FindFirstChildOfClass("Humanoid")
     
     if not hrp or not hum then return end
+
+    -- Ses çal (opsiyonel)
+    if playSound then
+        local sound = Instance.new("Sound")
+        sound.SoundId = teleportSoundId
+        sound.Volume = 0.5
+        sound.Parent = hrp
+        sound:Play()
+        game:GetService("Debris"):AddItem(sound, 2)
+    end
 
     local ff = Instance.new("ForceField")
     ff.Visible = false
@@ -51,20 +63,15 @@ end
 ------------------------------------------------
 -- CAMERA CONTROL
 ------------------------------------------------
-
 local function enableDrone()
-
     Camera.CameraType = Enum.CameraType.Scriptable
-
     if LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
         dronePos = LP.Character.HumanoidRootPart.Position + Vector3.new(0,80,0)
     end
 end
 
 local function disableDrone()
-
     Camera.CameraType = Enum.CameraType.Custom
-    
     if LP.Character then
         local hum = LP.Character:FindFirstChildOfClass("Humanoid")
         if hum then
@@ -76,54 +83,51 @@ end
 ------------------------------------------------
 -- UPDATE LOOP
 ------------------------------------------------
-
 RunService.RenderStepped:Connect(function()
-
     if not droneActive then return end
-
     Camera.FieldOfView = zoom
-
-    Camera.CFrame =
-        CFrame.new(dronePos) *
-        CFrame.Angles(math.rad(-90),0,0)
-
+    Camera.CFrame = CFrame.new(dronePos) * CFrame.Angles(math.rad(-90),0,0)
 end)
 
 ------------------------------------------------
--- CLICK TELEPORT
+-- DRONE MODU TIKLAMA IŞINLANMA
 ------------------------------------------------
-
 UIS.InputBegan:Connect(function(input, gpe)
-
     if gpe then return end
-    if not droneActive then return end
-
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        
+    if droneActive and input.UserInputType == Enum.UserInputType.MouseButton1 then
         local hitPos = mouse.Hit.Position
-        safeTeleport(hitPos)
-        
+        safeTeleport(hitPos, true) -- drone modunda sesli ışınlanma
+    end
+end)
+
+------------------------------------------------
+-- NORMAL MOD IŞINLANMA (E TUŞU İLE)
+------------------------------------------------
+UIS.InputBegan:Connect(function(input, gpe)
+    if gpe then return end
+    if not droneActive and input.KeyCode == normalTeleportKey then
+        local hitPos = mouse.Hit.Position
+        safeTeleport(hitPos, true) -- normal modda sesli ışınlanma
     end
 end)
 
 ------------------------------------------------
 -- UI
 ------------------------------------------------
-
 local Tab = Window:NewTab("Drone")
 local Section = Tab:NewSection("Drone")
 
 local MoveTab = Window:NewTab("Move")
 local MoveSection = MoveTab:NewSection("Yön")
 
-------------------------------------------------
--- TOGGLE
-------------------------------------------------
+local NormalTab = Window:NewTab("Normal Mod")
+local NormalSection = NormalTab:NewSection("Işınlanma")
 
+------------------------------------------------
+-- DRONE TOGGLE
+------------------------------------------------
 Section:NewToggle("Drone Mode", "Drone kamera", function(state)
-
     droneActive = state
-
     if state then
         enableDrone()
     else
@@ -134,7 +138,6 @@ end)
 ------------------------------------------------
 -- SPEED
 ------------------------------------------------
-
 Section:NewSlider("Speed", "", 20, 1, function(val)
     droneSpeed = val
 end)
@@ -142,7 +145,6 @@ end)
 ------------------------------------------------
 -- ZOOM
 ------------------------------------------------
-
 Section:NewSlider("Zoom", "", 120, 30, function(val)
     zoom = val
 end)
@@ -150,7 +152,6 @@ end)
 ------------------------------------------------
 -- MOVE BUTTONS
 ------------------------------------------------
-
 MoveSection:NewButton("⬆", "", function()
     dronePos += Vector3.new(0,0,-droneSpeed*5)
 end)
@@ -176,21 +177,31 @@ MoveSection:NewButton("🔽", "", function()
 end)
 
 ------------------------------------------------
+-- NORMAL MOD AYARLARI
+------------------------------------------------
+NormalSection:NewLabel("Normal modda fareyi bir yere getir")
+NormalSection:NewLabel("ve 'E' tuşuna basarak ışınlan.")
+NormalSection:NewLabel("Ses ID: " .. teleportSoundId)
+
+-- Ses ID'si değiştirme butonu (manuel)
+NormalSection:NewButton("Ses ID'sini Değiştir", "Scriptteki teleportSoundId değişkenini düzenle", function()
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "Ses ID'si",
+        Text = "Şu anki ID: " .. teleportSoundId .. "\nDeğiştirmek için scripti düzenle.",
+        Duration = 5
+    })
+end)
+
+------------------------------------------------
 -- MINIMIZE BUTTON
 ------------------------------------------------
-
 task.spawn(function()
-
     task.wait(1)
-
     local gui = game.CoreGui:FindFirstChild("KavoUI")
     if not gui then return end
-
     local topbar = gui:FindFirstChild("Top")
     local main = gui:FindFirstChild("Main")
-
     if not topbar or not main then return end
-
     local minimize = Instance.new("TextButton")
     minimize.Parent = topbar
     minimize.Size = UDim2.new(0,30,0,30)
@@ -199,12 +210,16 @@ task.spawn(function()
     minimize.BackgroundTransparency = 1
     minimize.TextScaled = true
     minimize.TextColor3 = Color3.new(1,1,1)
-
     local minimized = false
-
     minimize.MouseButton1Click:Connect(function()
         minimized = not minimized
         main.Visible = not minimized
     end)
-
 end)
+
+-- Bildirim
+game:GetService("StarterGui"):SetCore("SendNotification", {
+    Title = "Ghost Drone V10",
+    Text = "Normal modda E tuşu ile ışınlan!",
+    Duration = 5
+})
