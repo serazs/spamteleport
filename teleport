@@ -317,7 +317,7 @@ end)
 
 -- Bildirim
 game:GetService("StarterGui"):SetCore("SendNotification", {
-    Title = "Ghost Drone V10",
+    Title = "TP",
     Text = "Müzik menüsü eklendi, kamera sorunu düzeltildi!",
     Duration = 4
 })
